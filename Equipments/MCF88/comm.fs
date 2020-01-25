@@ -7,12 +7,6 @@ open Helpers
 
    
 [<RequireQualifiedAccess>]
-type BatteryLevel = 
-    | NoData
-    | Percent of decimal
-
-
-[<RequireQualifiedAccess>]
 type TemperaturePressureHumidityMeasure =
     { Timestamp : DateTime
       Temperature : decimal 
@@ -24,7 +18,7 @@ type TemperaturePressureHumidity =
     { Measure1 : TemperaturePressureHumidityMeasure
       Measure2 : TemperaturePressureHumidityMeasure
       Measure3 : TemperaturePressureHumidityMeasure
-      BatteryLevel : BatteryLevel }
+      Battery : decimal option }
 
 
 
@@ -43,24 +37,8 @@ type AnalogData =
       Measure2 : AnalogDataMeasure
       Measure3 : AnalogDataMeasure
       Measure4 : AnalogDataMeasure
-      BatteryLevel : BatteryLevel }
+      Battery : decimal option }
 
-
-
-
-
-let private toTimestamp (time : int32) =
-    let year = 2000 + ((time >>> 25) &&& 0x7F)
-    let month = (time >>> 21) &&& 0x0F
-    let day = (time >>> 16) &&& 0x1F
-    let hour = (time >>> 11) &&& 0x1F
-    let minutes = (time >>> 5) &&& 0x3F
-    let seconds = (time &&& 0x1F) * 2
-    DateTime(year, month, day, hour, minutes, seconds)
-
-
-let private toBatteryLevel (b : byte) =
-    b |> decimal |> BatteryLevel.Percent
 
 
 
@@ -75,6 +53,18 @@ type UplinkMessage =
     | AnalogData of AnalogData
     | TPRhLuxVocCo2
     | Unknown
+
+
+
+let private toTimestamp (time : int32) =
+    let year = 2000 + ((time >>> 25) &&& 0x7F)
+    let month = (time >>> 21) &&& 0x0F
+    let day = (time >>> 16) &&& 0x1F
+    let hour = (time >>> 11) &&& 0x1F
+    let minutes = (time >>> 5) &&& 0x3F
+    let seconds = (time &&& 0x1F) * 2
+    DateTime(year, month, day, hour, minutes, seconds)
+
 
 
 let private parseTemperaturePressureHumidityMeasure (binReader : BinaryReader) =
@@ -92,12 +82,12 @@ let private parseTemperaturePressureHumidity (binReader : BinaryReader) =
     let measure2 = binReader |> parseTemperaturePressureHumidityMeasure
     let measure3 = binReader |> parseTemperaturePressureHumidityMeasure
 
-    let batteryLevel = if binReader |> isEof then BatteryLevel.NoData
-                       else binReader.ReadByte() |> toBatteryLevel
+    let batteryLevel = if binReader |> isEof then None
+                       else binReader.ReadByte() |> decimal |> Some
     { TemperaturePressureHumidity.Measure1 = measure1
       TemperaturePressureHumidity.Measure2 = measure2
       TemperaturePressureHumidity.Measure3 = measure3
-      TemperaturePressureHumidity.BatteryLevel = batteryLevel }
+      TemperaturePressureHumidity.Battery = batteryLevel }
 
 
 
@@ -123,15 +113,15 @@ let private parseAnalogData (binReader : BinaryReader) =
     let measure3 = binReader.ReadInt16() |> toTemperaturePressureHumidityMeasure
     let measure4 = binReader.ReadInt16() |> toTemperaturePressureHumidityMeasure
 
-    let batteryLevel = if binReader |> isEof then BatteryLevel.NoData
-                       else binReader.ReadByte() |> toBatteryLevel
+    let batteryLevel = if binReader |> isEof then None
+                       else binReader.ReadByte() |> decimal |> Some
 
     { AnalogData.Timestamp = time 
       AnalogData.Measure1 = measure1
       AnalogData.Measure2 = measure2
       AnalogData.Measure3 = measure3
       AnalogData.Measure4 = measure4
-      AnalogData.BatteryLevel = batteryLevel }
+      AnalogData.Battery = batteryLevel }
 
 
 let toBinaryPayload (payload : string) = 

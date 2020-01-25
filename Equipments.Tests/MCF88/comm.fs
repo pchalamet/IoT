@@ -21,7 +21,7 @@ let TestTemperatureHumidityPressure () =
                                                               TemperaturePressureHumidityMeasure.Temperature = 27.38m
                                                               TemperaturePressureHumidityMeasure.Humidity = 33m
                                                               TemperaturePressureHumidityMeasure.Pressure = 1004.45m }
-                     TemperaturePressureHumidity.BatteryLevel = BatteryLevel.NoData } |> UplinkMessage.TemperaturePressureHumidity
+                     TemperaturePressureHumidity.Battery = None } |> UplinkMessage.TemperaturePressureHumidity
 
     let payload = "04dc7e3721b40a47608801dd7e3721b10a43608801e07e3721b20a425d8801"
     let message = parseUplinkMessage payload
