@@ -5,35 +5,48 @@ open System.IO
 open Helpers
 
 
-[<RequireQualifiedAccess>]
-type ChannelData =
-    | NoData
-    | Error
-    | MilliAmp4_20 of float
-    | Volt0_10 of float
-    | Volt0_5 of float
    
 [<RequireQualifiedAccess>]
 type BatteryLevel = 
     | NoData
-    | Percent of int
+    | Percent of decimal
 
 
-
-type TemperaturePressureHumidity =
+[<RequireQualifiedAccess>]
+type TemperaturePressureHumidityMeasure =
     { Timestamp : DateTime
-      Temperature : float 
-      Humidity : float
-      Pressure : float 
+      Temperature : decimal 
+      Humidity : decimal
+      Pressure : decimal }
+
+[<RequireQualifiedAccess>]
+type TemperaturePressureHumidity =
+    { Measure1 : TemperaturePressureHumidityMeasure
+      Measure2 : TemperaturePressureHumidityMeasure
+      Measure3 : TemperaturePressureHumidityMeasure
       BatteryLevel : BatteryLevel }
 
+
+
+[<RequireQualifiedAccess>]
+type AnalogDataMeasure =
+    | NoData
+    | Error
+    | MilliAmp4_20 of decimal
+    | Volt0_10 of decimal
+    | Volt0_5 of decimal
+
+[<RequireQualifiedAccess>]
 type AnalogData =
     { Timestamp : DateTime
-      Data1 : ChannelData
-      Data2 : ChannelData
-      Data3 : ChannelData
-      Data4 : ChannelData
+      Measure1 : AnalogDataMeasure
+      Measure2 : AnalogDataMeasure
+      Measure3 : AnalogDataMeasure
+      Measure4 : AnalogDataMeasure
       BatteryLevel : BatteryLevel }
+
+
+
 
 
 let private toTimestamp (time : int32) =
@@ -47,22 +60,9 @@ let private toTimestamp (time : int32) =
 
 
 let private toBatteryLevel (b : byte) =
-    b |> int |> BatteryLevel.Percent
+    b |> decimal |> BatteryLevel.Percent
 
 
-let toChannelData (s : int16) =
-    let hasError = (s &&& 0x1000s) <> 0s
-    let dataType = (s &&& 0x6000s) >>> 13
-    let data = s &&& 0xFFFs
-
-    match hasError, data with
-    | true, 0s -> ChannelData.NoData
-    | true, _ -> ChannelData.Error
-    | false, _ -> match dataType with 
-                  | 0s -> (((float)data/ 4095.0) * 16.0 + 4.0) |> ChannelData.MilliAmp4_20 
-                  | 1s -> (float)data |> ChannelData.Volt0_10
-                  | 2s -> (float)data |> ChannelData.Volt0_5
-                  | _ -> ChannelData.Error
 
 type UplinkMessage =
     | TimeSyncRequest
@@ -77,36 +77,60 @@ type UplinkMessage =
     | Unknown
 
 
+let private parseTemperaturePressureHumidityMeasure (binReader : BinaryReader) =
+    let time = binReader.ReadInt32() |> toTimestamp
+    let temperature = (binReader.ReadInt16() |> decimal) / 100.0m
+    let humidity = (binReader.ReadByte() |> decimal) / 2.0m
+    let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> decimal) / 100.0m
+    { TemperaturePressureHumidityMeasure.Timestamp = time
+      TemperaturePressureHumidityMeasure.Temperature = temperature
+      TemperaturePressureHumidityMeasure.Humidity = humidity
+      TemperaturePressureHumidityMeasure.Pressure = pressure }
 
 let private parseTemperaturePressureHumidity (binReader : BinaryReader) =
-    let time = binReader.ReadInt32() |> toTimestamp
-    let temperature = (binReader.ReadInt16() |> float) / 100.0
-    let humidity = (binReader.ReadByte() |> float) / 2.0
-    let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> float) / 100.0
+    let measure1 = binReader |> parseTemperaturePressureHumidityMeasure
+    let measure2 = binReader |> parseTemperaturePressureHumidityMeasure
+    let measure3 = binReader |> parseTemperaturePressureHumidityMeasure
+
     let batteryLevel = if binReader |> isEof then BatteryLevel.NoData
                        else binReader.ReadByte() |> toBatteryLevel
-    { TemperaturePressureHumidity.Timestamp = time
-      TemperaturePressureHumidity.Temperature = temperature
-      TemperaturePressureHumidity.Humidity = humidity
-      TemperaturePressureHumidity.Pressure = pressure
+    { TemperaturePressureHumidity.Measure1 = measure1
+      TemperaturePressureHumidity.Measure2 = measure2
+      TemperaturePressureHumidity.Measure3 = measure3
       TemperaturePressureHumidity.BatteryLevel = batteryLevel }
 
 
+
+
+let toTemperaturePressureHumidityMeasure (s : int16) =
+    let hasError = (s &&& 0x1000s) <> 0s
+    let dataType = (s &&& 0x6000s) >>> 13
+    let data = s &&& 0xFFFs
+
+    match hasError, data with
+    | true, 0s -> AnalogDataMeasure.NoData
+    | true, _ -> AnalogDataMeasure.Error
+    | false, _ -> match dataType with 
+                  | 0s -> (((decimal)data/ 4095.0m) * 16.0m + 4.0m) |> AnalogDataMeasure.MilliAmp4_20 
+                  | 1s -> (decimal)data |> AnalogDataMeasure.Volt0_10
+                  | 2s -> (decimal)data |> AnalogDataMeasure.Volt0_5
+                  | _ -> AnalogDataMeasure.Error
+
 let private parseAnalogData (binReader : BinaryReader) =
     let time = binReader.ReadInt32() |> toTimestamp
-    let data1 = binReader.ReadInt16() |> toChannelData
-    let data2 = binReader.ReadInt16() |> toChannelData
-    let data3 = binReader.ReadInt16() |> toChannelData
-    let data4 = binReader.ReadInt16() |> toChannelData
+    let measure1 = binReader.ReadInt16() |> toTemperaturePressureHumidityMeasure
+    let measure2 = binReader.ReadInt16() |> toTemperaturePressureHumidityMeasure
+    let measure3 = binReader.ReadInt16() |> toTemperaturePressureHumidityMeasure
+    let measure4 = binReader.ReadInt16() |> toTemperaturePressureHumidityMeasure
 
     let batteryLevel = if binReader |> isEof then BatteryLevel.NoData
                        else binReader.ReadByte() |> toBatteryLevel
 
     { AnalogData.Timestamp = time 
-      AnalogData.Data1 = data1
-      AnalogData.Data2 = data2
-      AnalogData.Data3 = data3
-      AnalogData.Data4 = data4
+      AnalogData.Measure1 = measure1
+      AnalogData.Measure2 = measure2
+      AnalogData.Measure3 = measure3
+      AnalogData.Measure4 = measure4
       AnalogData.BatteryLevel = batteryLevel }
 
 
