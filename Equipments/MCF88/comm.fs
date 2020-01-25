@@ -85,7 +85,7 @@ type UplinkMessage =
     | ReportData
     | TemperaturePressureHumidityLuxVoc
     | AnalogData of AnalogData
-    | TPRhLuxVocCo2
+    | TPRhLuxVocCo2 of TPRhLuxVocCo2
     | Unknown
 
 
@@ -232,5 +232,5 @@ let parseUplinkMessage (payload : string) =
     | 0x0Buy -> UplinkMessage.ReportData
     | 0x0Cuy -> UplinkMessage.TemperaturePressureHumidityLuxVoc
     | 0x0Duy -> parseAnalogData binReader |> UplinkMessage.AnalogData
-    | 0x0Euy -> UplinkMessage.TPRhLuxVocCo2
+    | 0x0Euy -> parseTPRhLuxVocCo2 binReader |> UplinkMessage.TPRhLuxVocCo2
     | _ -> UplinkMessage.Unknown
