@@ -8,7 +8,7 @@
     <Compile Remove="Library.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EnumHelpers.fs" />
-    <Compile Include="mcf88-modem.fs" />
+    <Compile Include="Helpers.fs" />
+    <Compile Include="MCF88\comm.fs" />
   </ItemGroup>
 </Project>
