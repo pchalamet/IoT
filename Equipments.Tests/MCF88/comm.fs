@@ -4,7 +4,7 @@ open System
 open NUnit.Framework
 open FsUnit
 
-open Equipments.Mcf88.Comm
+open Equipments.MCF88.Comm
 
 
 [<Test>]
