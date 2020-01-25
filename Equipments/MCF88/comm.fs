@@ -83,7 +83,7 @@ type UplinkMessage =
     | Power
     | InputOutput
     | ReportData
-    | TemperaturePressureHumidityLuxVoc
+    | TemperaturePressureHumidityLuxVoc of TemperaturePressureHumidityLuxVoc
     | AnalogData of AnalogData
     | TPRhLuxVocCo2 of TPRhLuxVocCo2
     | Unknown
@@ -225,12 +225,12 @@ let parseUplinkMessage (payload : string) =
     let upLinkId = binReader.ReadByte()
     match upLinkId with
     | 0x01uy -> UplinkMessage.TimeSyncRequest
-    | 0x04uy -> parseTemperaturePressureHumidity binReader |> UplinkMessage.TemperaturePressureHumidity
+    | 0x04uy -> binReader |> parseTemperaturePressureHumidity |> TemperaturePressureHumidity
     | 0x05uy -> UplinkMessage.Uart
     | 0x09uy -> UplinkMessage.Power
     | 0x0Auy -> UplinkMessage.InputOutput
     | 0x0Buy -> UplinkMessage.ReportData
-    | 0x0Cuy -> UplinkMessage.TemperaturePressureHumidityLuxVoc
-    | 0x0Duy -> parseAnalogData binReader |> UplinkMessage.AnalogData
-    | 0x0Euy -> parseTPRhLuxVocCo2 binReader |> UplinkMessage.TPRhLuxVocCo2
+    | 0x0Cuy -> binReader |> parseTemperaturePressureHumidityLuxVoc |> TemperaturePressureHumidityLuxVoc
+    | 0x0Duy -> binReader |> parseAnalogData |> AnalogData
+    | 0x0Euy -> binReader |> parseTPRhLuxVocCo2 |> TPRhLuxVocCo2
     | _ -> UplinkMessage.Unknown
