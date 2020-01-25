@@ -136,8 +136,7 @@ let private parseAnalogData (binReader : BinaryReader) =
 
 let toBinaryPayload (payload : string) = 
     payload |> Seq.splitInto (payload.Length / 2)
-            |> Seq.map (fun c2 -> String(c2))
-            |> Seq.map (fun s -> Byte.Parse(s, Globalization.NumberStyles.HexNumber))
+            |> Seq.map (fun c2 -> Byte.Parse(String(c2), Globalization.NumberStyles.HexNumber))
             |> Array.ofSeq
 
 let parseUplinkMessage (payload : string) =
@@ -147,7 +146,6 @@ let parseUplinkMessage (payload : string) =
     use binReader = new BinaryReader(memStream)
 
     let upLinkId = binReader.ReadByte()
-
     match upLinkId with
     | 0x01uy -> UplinkMessage.TimeSyncRequest
     | 0x04uy -> parseTemperaturePressureHumidity binReader |> UplinkMessage.TemperaturePressureHumidity
