@@ -1,4 +1,4 @@
-module Equipments.MCF88.Comm
+module Devices.MCF88.Comm
 open System
 open System.IO
 
