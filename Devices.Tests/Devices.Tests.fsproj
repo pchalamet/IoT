@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Payload.fs" />
     <Compile Include="MCF88\Comm.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

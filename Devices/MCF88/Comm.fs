@@ -1,6 +1,8 @@
 module Devices.MCF88.Comm
 open System
 open System.IO
+open Devices.Payload
+
 
 
 // === Measures
@@ -87,8 +89,6 @@ module Measures =
 
 // === Messages
 module Messages =
-    open Helpers
-
     type TemperaturePressureHumidity =
         { Measure1 : Measures.TPRh
           Measure2 : Measures.TPRh
@@ -183,7 +183,7 @@ type UplinkMessage =
     | Unknown
 
 let DecodeUplinkMessage (payload : string) =
-    let binPayload = payload |> Helpers.toBinaryPayload
+    let binPayload = payload |> toBinaryPayload
     use memStream = new MemoryStream(binPayload)
     use binReader = new BinaryReader(memStream)
 
