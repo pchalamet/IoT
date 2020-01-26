@@ -32,25 +32,25 @@ open Devices.Payload
 module Measures =
     type TPRh =
         { Timestamp : DateTime
-          Temperature : decimal 
-          Humidity : decimal
-          Pressure : decimal }
+          Temperature : float 
+          Humidity : float
+          Pressure : float }
 
     type TPRhLuxVoc =
         { TPRh : TPRh
-          Luminance : decimal 
-          Voc : decimal }
+          Luminance : float 
+          Voc : float }
 
     type TPRhLuxVocCo2 =
         { TPRhLuxVoc : TPRhLuxVoc
-          Co2 : decimal }
+          Co2 : float }
 
     type AnalogData =
         | NoData
         | Error
-        | MilliAmp4to20 of decimal
-        | Volt0to10 of decimal
-        | Volt0to5 of decimal
+        | MilliAmp4to20 of float
+        | Volt0to10 of float
+        | Volt0to5 of float
 
 
     let decodeTimestamp (binReader : BinaryReader) =
@@ -74,17 +74,17 @@ module Measures =
         | true, 0s -> NoData
         | true, _ -> Error
         | false, _ -> match dataType with 
-                      | 0s -> (((decimal)data/ 4095.0m) * 16.0m + 4.0m) |> MilliAmp4to20 
-                      | 1s -> (decimal)data |> Volt0to10
-                      | 2s -> (decimal)data |> Volt0to5
+                      | 0s -> (16.0 * (data |> float) / 4095.0) + 4.0 |> MilliAmp4to20 
+                      | 1s -> data |> float |> Volt0to10
+                      | 2s -> data |> float |> Volt0to5
                       | _ -> Error
 
 
     let decodeTPRhMeasure (binReader : BinaryReader) =
         let time = binReader |> decodeTimestamp
-        let temperature = (binReader.ReadInt16() |> decimal) / 100.0m
-        let humidity = (binReader.ReadByte() |> decimal) / 2.0m
-        let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> decimal) / 100.0m
+        let temperature = (binReader.ReadInt16() |> float) / 100.0
+        let humidity = (binReader.ReadByte() |> float) / 2.0
+        let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> float) / 100.0
 
         { TPRh.Timestamp = time
           TPRh.Temperature = temperature
@@ -94,8 +94,8 @@ module Measures =
 
     let decodeTPRhLuxVocMeasure (binReader : BinaryReader) =
         let tprh = binReader |> decodeTPRhMeasure
-        let lux = binReader.ReadInt16() |> decimal
-        let voc = binReader.ReadInt16() |> decimal
+        let lux = binReader.ReadInt16() |> float
+        let voc = binReader.ReadInt16() |> float
 
         { TPRhLuxVoc.TPRh = tprh
           TPRhLuxVoc.Luminance = lux
@@ -104,7 +104,7 @@ module Measures =
 
     let decodeTPRhLuxVocCo2Measure (binReader : BinaryReader) =
         let tprhlv = binReader |> decodeTPRhLuxVocMeasure
-        let co2 = binReader.ReadInt16() |> decimal
+        let co2 = binReader.ReadInt16() |> float
 
         { TPRhLuxVocCo2.TPRhLuxVoc = tprhlv
           TPRhLuxVocCo2.Co2 = co2 }
@@ -116,17 +116,17 @@ module Messages =
         { Measure1 : Measures.TPRh
           Measure2 : Measures.TPRh
           Measure3 : Measures.TPRh
-          Battery : decimal option }
+          Battery : float option }
 
     type TemperaturePressureHumidityLuxVoc =
         { Measure1 : Measures.TPRhLuxVoc
           Measure2 : Measures.TPRhLuxVoc
-          Battery : decimal option }
+          Battery : float option }
 
     type TPRhLuxVocCo2 =
         { Measure1 : Measures.TPRhLuxVocCo2
           Measure2 : Measures.TPRhLuxVocCo2
-          Battery : decimal option }
+          Battery : float option }
 
     type AnalogData =
         { Timestamp : DateTime
@@ -134,7 +134,7 @@ module Messages =
           Measure2 : Measures.AnalogData
           Measure3 : Measures.AnalogData
           Measure4 : Measures.AnalogData
-          Battery : decimal option }
+          Battery : float option }
 
 
     let parseAnalogData (binReader : BinaryReader) =
@@ -144,7 +144,7 @@ module Messages =
         let measure3 = binReader |> Measures.decodeAnalogDataMeasure
         let measure4 = binReader |> Measures.decodeAnalogDataMeasure
         let batteryLevel = if binReader |> isEof then None
-                            else binReader.ReadByte() |> decimal |> Some
+                            else binReader.ReadByte() |> float |> Some
 
         { AnalogData.Timestamp = time 
           AnalogData.Measure1 = measure1
@@ -160,7 +160,7 @@ module Messages =
         let measure2 = binReader |> Measures.decodeTPRhMeasure
         let measure3 = binReader |> Measures.decodeTPRhMeasure
         let batteryLevel = if binReader |> isEof then None
-                            else binReader.ReadByte() |> decimal |> Some
+                            else binReader.ReadByte() |> float |> Some
 
         { TemperaturePressureHumidity.Measure1 = measure1
           TemperaturePressureHumidity.Measure2 = measure2
@@ -173,7 +173,7 @@ module Messages =
         let measure1 = binReader |> Measures.decodeTPRhLuxVocMeasure
         let measure2 = binReader |> Measures.decodeTPRhLuxVocMeasure
         let batteryLevel = if binReader |> isEof then None
-                           else binReader.ReadByte() |> decimal |> Some
+                           else binReader.ReadByte() |> float |> Some
 
         { TemperaturePressureHumidityLuxVoc.Measure1 = measure1
           TemperaturePressureHumidityLuxVoc.Measure2 = measure2
@@ -185,7 +185,7 @@ module Messages =
         let measure1 = binReader |> Measures.decodeTPRhLuxVocCo2Measure
         let measure2 = binReader |> Measures.decodeTPRhLuxVocCo2Measure
         let batteryLevel = if binReader |> isEof then None
-                           else binReader.ReadByte() |> decimal |> Some
+                           else binReader.ReadByte() |> float |> Some
 
         { TPRhLuxVocCo2.Measure1 = measure1
           TPRhLuxVocCo2.Measure2 = measure2
