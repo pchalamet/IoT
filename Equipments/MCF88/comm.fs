@@ -87,8 +87,6 @@ module Measures =
 
 // === Messages
 module Messages =
-    open System
-    open System.IO
     open Helpers
 
     type TemperaturePressureHumidity =
@@ -152,7 +150,7 @@ module Messages =
         let measure1 = binReader |> Measures.decodeTPRhLuxVocMeasure
         let measure2 = binReader |> Measures.decodeTPRhLuxVocMeasure
         let batteryLevel = if binReader |> isEof then None
-                            else binReader.ReadByte() |> decimal |> Some
+                           else binReader.ReadByte() |> decimal |> Some
 
         { TemperaturePressureHumidityLuxVoc.Measure1 = measure1
           TemperaturePressureHumidityLuxVoc.Measure2 = measure2
@@ -164,7 +162,7 @@ module Messages =
         let measure1 = binReader |> Measures.decodeTPRhLuxVocCo2Measure
         let measure2 = binReader |> Measures.decodeTPRhLuxVocCo2Measure
         let batteryLevel = if binReader |> isEof then None
-                            else binReader.ReadByte() |> decimal |> Some
+                           else binReader.ReadByte() |> decimal |> Some
 
         { TPRhLuxVocCo2.Measure1 = measure1
           TPRhLuxVocCo2.Measure2 = measure2
