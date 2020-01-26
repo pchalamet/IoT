@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="MCF88\comm.fs" />
+    <Compile Include="MCF88\Comm.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

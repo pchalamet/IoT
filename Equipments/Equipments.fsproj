@@ -5,10 +5,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Library.fs" />
+    <Compile Include="Helpers.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Helpers.fs" />
-    <Compile Include="MCF88\comm.fs" />
+    <Compile Include="MCF88\Comm.fs" />
   </ItemGroup>
 </Project>

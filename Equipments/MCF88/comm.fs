@@ -1,217 +1,203 @@
-﻿module Equipments.MCF88.Comm
-
+module Equipments.MCF88.Comm
 open System
 open System.IO
-open Helpers
 
 
 // === Measures
+module Measures =
+    type TPRh =
+        { Timestamp : DateTime
+          Temperature : decimal 
+          Humidity : decimal
+          Pressure : decimal }
 
-[<RequireQualifiedAccess>]
-type TPRhMeasure =
-    { Timestamp : DateTime
-      Temperature : decimal 
-      Humidity : decimal
-      Pressure : decimal }
+    type TPRhLuxVoc =
+        { TPRh : TPRh
+          Luminance : decimal 
+          Voc : decimal }
 
-[<RequireQualifiedAccess>]
-type TPRhLuxVocMeasure =
-    { TPRh : TPRhMeasure 
-      Luminance : decimal 
-      Voc : decimal }
+    type TPRhLuxVocCo2 =
+        { TPRhLuxVoc : TPRhLuxVoc
+          Co2 : decimal }
 
-[<RequireQualifiedAccess>]
-type TPRhLuxVocCo2Measure =
-    { TPRhLuxVoc : TPRhLuxVocMeasure
-      Co2 : decimal }
-
-[<RequireQualifiedAccess>]
-type AnalogDataMeasure =
-    | NoData
-    | Error
-    | MilliAmp4to20 of decimal
-    | Volt0to10 of decimal
-    | Volt0to5 of decimal
+    type AnalogData =
+        | NoData
+        | Error
+        | MilliAmp4to20 of decimal
+        | Volt0to10 of decimal
+        | Volt0to5 of decimal
 
 
+    let decodeTimestamp (binReader : BinaryReader) =
+        let time = binReader.ReadInt32()
+        let year = 2000 + ((time >>> 25) &&& 0x7F)
+        let month = (time >>> 21) &&& 0x0F
+        let day = (time >>> 16) &&& 0x1F
+        let hour = (time >>> 11) &&& 0x1F
+        let minutes = (time >>> 5) &&& 0x3F
+        let seconds = (time &&& 0x1F) * 2
+        DateTime(year, month, day, hour, minutes, seconds)
 
 
-let private decodeTimestamp (binReader : BinaryReader) =
-    let time = binReader.ReadInt32()
-    let year = 2000 + ((time >>> 25) &&& 0x7F)
-    let month = (time >>> 21) &&& 0x0F
-    let day = (time >>> 16) &&& 0x1F
-    let hour = (time >>> 11) &&& 0x1F
-    let minutes = (time >>> 5) &&& 0x3F
-    let seconds = (time &&& 0x1F) * 2
-    DateTime(year, month, day, hour, minutes, seconds)
+    let decodeAnalogDataMeasure (binReader : BinaryReader) =
+        let measure = binReader.ReadInt16()
+        let hasError = (measure &&& 0x1000s) <> 0s
+        let dataType = (measure &&& 0x6000s) >>> 13
+        let data = measure &&& 0xFFFs
+
+        match hasError, data with
+        | true, 0s -> NoData
+        | true, _ -> Error
+        | false, _ -> match dataType with 
+                      | 0s -> (((decimal)data/ 4095.0m) * 16.0m + 4.0m) |> MilliAmp4to20 
+                      | 1s -> (decimal)data |> Volt0to10
+                      | 2s -> (decimal)data |> Volt0to5
+                      | _ -> Error
 
 
-let decodeAnalogDataMeasure (binReader : BinaryReader) =
-    let measure = binReader.ReadInt16()
-    let hasError = (measure &&& 0x1000s) <> 0s
-    let dataType = (measure &&& 0x6000s) >>> 13
-    let data = measure &&& 0xFFFs
+    let decodeTPRhMeasure (binReader : BinaryReader) =
+        let time = binReader |> decodeTimestamp
+        let temperature = (binReader.ReadInt16() |> decimal) / 100.0m
+        let humidity = (binReader.ReadByte() |> decimal) / 2.0m
+        let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> decimal) / 100.0m
 
-    match hasError, data with
-    | true, 0s -> AnalogDataMeasure.NoData
-    | true, _ -> AnalogDataMeasure.Error
-    | false, _ -> match dataType with 
-                  | 0s -> (((decimal)data/ 4095.0m) * 16.0m + 4.0m) |> AnalogDataMeasure.MilliAmp4to20 
-                  | 1s -> (decimal)data |> AnalogDataMeasure.Volt0to10
-                  | 2s -> (decimal)data |> AnalogDataMeasure.Volt0to5
-                  | _ -> AnalogDataMeasure.Error
+        { TPRh.Timestamp = time
+          TPRh.Temperature = temperature
+          TPRh.Humidity = humidity
+          TPRh.Pressure = pressure }
 
 
-let private decodeTPRhMeasure (binReader : BinaryReader) =
-    let time = binReader |> decodeTimestamp
-    let temperature = (binReader.ReadInt16() |> decimal) / 100.0m
-    let humidity = (binReader.ReadByte() |> decimal) / 2.0m
-    let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> decimal) / 100.0m
+    let decodeTPRhLuxVocMeasure (binReader : BinaryReader) =
+        let tprh = binReader |> decodeTPRhMeasure
+        let lux = binReader.ReadInt16() |> decimal
+        let voc = binReader.ReadInt16() |> decimal
 
-    { TPRhMeasure.Timestamp = time
-      TPRhMeasure.Temperature = temperature
-      TPRhMeasure.Humidity = humidity
-      TPRhMeasure.Pressure = pressure }
+        { TPRhLuxVoc.TPRh = tprh
+          TPRhLuxVoc.Luminance = lux
+          TPRhLuxVoc.Voc = voc }
 
 
-let private decodeTPRhLuxVocMeasure (binReader : BinaryReader) =
-    let tprh = binReader |> decodeTPRhMeasure
-    let lux = binReader.ReadInt16() |> decimal
-    let voc = binReader.ReadInt16() |> decimal
+    let decodeTPRhLuxVocCo2Measure (binReader : BinaryReader) =
+        let tprhlv = binReader |> decodeTPRhLuxVocMeasure
+        let co2 = binReader.ReadInt16() |> decimal
 
-    { TPRhLuxVocMeasure.TPRh = tprh
-      TPRhLuxVocMeasure.Luminance = lux
-      TPRhLuxVocMeasure.Voc = voc }
-
-
-let private decodeTPRhLuxVocCo2Measure (binReader : BinaryReader) =
-    let tprhlv = binReader |> decodeTPRhLuxVocMeasure
-    let co2 = binReader.ReadInt16() |> decimal
-
-    { TPRhLuxVocCo2Measure.TPRhLuxVoc = tprhlv
-      TPRhLuxVocCo2Measure.Co2 = co2 }
+        { TPRhLuxVocCo2.TPRhLuxVoc = tprhlv
+          TPRhLuxVocCo2.Co2 = co2 }
 
 
 // === Messages
+module Messages =
+    open System
+    open System.IO
+    open Helpers
 
-[<RequireQualifiedAccess>]
-type TemperaturePressureHumidity =
-    { Measure1 : TPRhMeasure
-      Measure2 : TPRhMeasure
-      Measure3 : TPRhMeasure
-      Battery : decimal option }
+    type TemperaturePressureHumidity =
+        { Measure1 : Measures.TPRh
+          Measure2 : Measures.TPRh
+          Measure3 : Measures.TPRh
+          Battery : decimal option }
 
-[<RequireQualifiedAccess>]
-type TemperaturePressureHumidityLuxVoc =
-    { Measure1 : TPRhLuxVocMeasure
-      Measure2 : TPRhLuxVocMeasure
-      Battery : decimal option }
+    type TemperaturePressureHumidityLuxVoc =
+        { Measure1 : Measures.TPRhLuxVoc
+          Measure2 : Measures.TPRhLuxVoc
+          Battery : decimal option }
 
-[<RequireQualifiedAccess>]
-type TPRhLuxVocCo2 =
-    { Measure1 : TPRhLuxVocCo2Measure
-      Measure2 : TPRhLuxVocCo2Measure
-      Battery : decimal option }
+    type TPRhLuxVocCo2 =
+        { Measure1 : Measures.TPRhLuxVocCo2
+          Measure2 : Measures.TPRhLuxVocCo2
+          Battery : decimal option }
 
-[<RequireQualifiedAccess>]
-type AnalogData =
-    { Timestamp : DateTime
-      Measure1 : AnalogDataMeasure
-      Measure2 : AnalogDataMeasure
-      Measure3 : AnalogDataMeasure
-      Measure4 : AnalogDataMeasure
-      Battery : decimal option }
-
-
-let private parseAnalogData (binReader : BinaryReader) =
-    let time = binReader |> decodeTimestamp
-    let measure1 = binReader |> decodeAnalogDataMeasure
-    let measure2 = binReader |> decodeAnalogDataMeasure
-    let measure3 = binReader |> decodeAnalogDataMeasure
-    let measure4 = binReader |> decodeAnalogDataMeasure
-    let batteryLevel = if binReader |> isEof then None
-                       else binReader.ReadByte() |> decimal |> Some
-
-    { AnalogData.Timestamp = time 
-      AnalogData.Measure1 = measure1
-      AnalogData.Measure2 = measure2
-      AnalogData.Measure3 = measure3
-      AnalogData.Measure4 = measure4
-      AnalogData.Battery = batteryLevel }
+    type AnalogData =
+        { Timestamp : DateTime
+          Measure1 : Measures.AnalogData
+          Measure2 : Measures.AnalogData
+          Measure3 : Measures.AnalogData
+          Measure4 : Measures.AnalogData
+          Battery : decimal option }
 
 
+    let parseAnalogData (binReader : BinaryReader) =
+        let time = binReader |> Measures.decodeTimestamp
+        let measure1 = binReader |> Measures.decodeAnalogDataMeasure
+        let measure2 = binReader |> Measures.decodeAnalogDataMeasure
+        let measure3 = binReader |> Measures.decodeAnalogDataMeasure
+        let measure4 = binReader |> Measures.decodeAnalogDataMeasure
+        let batteryLevel = if binReader |> isEof then None
+                            else binReader.ReadByte() |> decimal |> Some
 
-let private parseTemperaturePressureHumidity (binReader : BinaryReader) =
-    let measure1 = binReader |> decodeTPRhMeasure
-    let measure2 = binReader |> decodeTPRhMeasure
-    let measure3 = binReader |> decodeTPRhMeasure
-    let batteryLevel = if binReader |> isEof then None
-                       else binReader.ReadByte() |> decimal |> Some
-
-    { TemperaturePressureHumidity.Measure1 = measure1
-      TemperaturePressureHumidity.Measure2 = measure2
-      TemperaturePressureHumidity.Measure3 = measure3
-      TemperaturePressureHumidity.Battery = batteryLevel }
+        { AnalogData.Timestamp = time 
+          AnalogData.Measure1 = measure1
+          AnalogData.Measure2 = measure2
+          AnalogData.Measure3 = measure3
+          AnalogData.Measure4 = measure4
+          AnalogData.Battery = batteryLevel }
 
 
 
-let private parseTemperaturePressureHumidityLuxVoc (binReader : BinaryReader) =
-    let measure1 = binReader |> decodeTPRhLuxVocMeasure
-    let measure2 = binReader |> decodeTPRhLuxVocMeasure
-    let batteryLevel = if binReader |> isEof then None
-                       else binReader.ReadByte() |> decimal |> Some
+    let parseTemperaturePressureHumidity (binReader : BinaryReader) =
+        let measure1 = binReader |> Measures.decodeTPRhMeasure
+        let measure2 = binReader |> Measures.decodeTPRhMeasure
+        let measure3 = binReader |> Measures.decodeTPRhMeasure
+        let batteryLevel = if binReader |> isEof then None
+                            else binReader.ReadByte() |> decimal |> Some
 
-    { TemperaturePressureHumidityLuxVoc.Measure1 = measure1
-      TemperaturePressureHumidityLuxVoc.Measure2 = measure2
-      TemperaturePressureHumidityLuxVoc.Battery = batteryLevel }
-
-
-
-let private parseTPRhLuxVocCo2 (binReader : BinaryReader) =
-    let measure1 = binReader |> decodeTPRhLuxVocCo2Measure
-    let measure2 = binReader |> decodeTPRhLuxVocCo2Measure
-    let batteryLevel = if binReader |> isEof then None
-                       else binReader.ReadByte() |> decimal |> Some
-
-    { TPRhLuxVocCo2.Measure1 = measure1
-      TPRhLuxVocCo2.Measure2 = measure2
-      TPRhLuxVocCo2.Battery = batteryLevel }
+        { TemperaturePressureHumidity.Measure1 = measure1
+          TemperaturePressureHumidity.Measure2 = measure2
+          TemperaturePressureHumidity.Measure3 = measure3
+          TemperaturePressureHumidity.Battery = batteryLevel }
 
 
-// Main decoder
 
+    let parseTemperaturePressureHumidityLuxVoc (binReader : BinaryReader) =
+        let measure1 = binReader |> Measures.decodeTPRhLuxVocMeasure
+        let measure2 = binReader |> Measures.decodeTPRhLuxVocMeasure
+        let batteryLevel = if binReader |> isEof then None
+                            else binReader.ReadByte() |> decimal |> Some
+
+        { TemperaturePressureHumidityLuxVoc.Measure1 = measure1
+          TemperaturePressureHumidityLuxVoc.Measure2 = measure2
+          TemperaturePressureHumidityLuxVoc.Battery = batteryLevel }
+
+
+
+    let parseTPRhLuxVocCo2 (binReader : BinaryReader) =
+        let measure1 = binReader |> Measures.decodeTPRhLuxVocCo2Measure
+        let measure2 = binReader |> Measures.decodeTPRhLuxVocCo2Measure
+        let batteryLevel = if binReader |> isEof then None
+                            else binReader.ReadByte() |> decimal |> Some
+
+        { TPRhLuxVocCo2.Measure1 = measure1
+          TPRhLuxVocCo2.Measure2 = measure2
+          TPRhLuxVocCo2.Battery = batteryLevel }
+
+
+// === Main decoder
 type UplinkMessage =
     | TimeSyncRequest
-    | TemperaturePressureHumidity of TemperaturePressureHumidity
+    | TemperaturePressureHumidity of Messages.TemperaturePressureHumidity
     | Uart
     | Power
     | InputOutput
     | ReportData
-    | TemperaturePressureHumidityLuxVoc of TemperaturePressureHumidityLuxVoc
-    | AnalogData of AnalogData
-    | TPRhLuxVocCo2 of TPRhLuxVocCo2
+    | TemperaturePressureHumidityLuxVoc of Messages.TemperaturePressureHumidityLuxVoc
+    | AnalogData of Messages.AnalogData
+    | TPRhLuxVocCo2 of Messages.TPRhLuxVocCo2
     | Unknown
 
-let private toBinaryPayload (payload : string) = 
-    payload |> Seq.splitInto (payload.Length / 2)
-            |> Seq.map (fun c2 -> Byte.Parse(String(c2), Globalization.NumberStyles.HexNumber))
-            |> Array.ofSeq
-
-let decodeUplinkMessage (payload : string) =
-    let binPayload = payload |> toBinaryPayload
+let DecodeUplinkMessage (payload : string) =
+    let binPayload = payload |> Helpers.toBinaryPayload
     use memStream = new MemoryStream(binPayload)
     use binReader = new BinaryReader(memStream)
 
     let upLinkId = binReader.ReadByte()
     match upLinkId with
-    | 0x01uy -> UplinkMessage.TimeSyncRequest
-    | 0x04uy -> binReader |> parseTemperaturePressureHumidity |> TemperaturePressureHumidity
-    | 0x05uy -> UplinkMessage.Uart
-    | 0x09uy -> UplinkMessage.Power
-    | 0x0Auy -> UplinkMessage.InputOutput
-    | 0x0Buy -> UplinkMessage.ReportData
-    | 0x0Cuy -> binReader |> parseTemperaturePressureHumidityLuxVoc |> TemperaturePressureHumidityLuxVoc
-    | 0x0Duy -> binReader |> parseAnalogData |> AnalogData
-    | 0x0Euy -> binReader |> parseTPRhLuxVocCo2 |> TPRhLuxVocCo2
-    | _ -> UplinkMessage.Unknown
+    | 0x01uy -> TimeSyncRequest
+    | 0x04uy -> binReader |> Messages.parseTemperaturePressureHumidity |> TemperaturePressureHumidity
+    | 0x05uy -> Uart
+    | 0x09uy -> Power
+    | 0x0Auy -> InputOutput
+    | 0x0Buy -> ReportData
+    | 0x0Cuy -> binReader |> Messages.parseTemperaturePressureHumidityLuxVoc |> TemperaturePressureHumidityLuxVoc
+    | 0x0Duy -> binReader |> Messages.parseAnalogData |> AnalogData
+    | 0x0Euy -> binReader |> Messages.parseTPRhLuxVocCo2 |> TPRhLuxVocCo2
+    | _ -> Unknown
