@@ -1,9 +1,32 @@
-module Devices.MCF88.Comm
+// payload decoder for MCF88 IO devices:
+// MCF-LW06485
+// MCF-LW06VMC
+// MCF-LW06232
+// MCF-LW06420
+// MCF-LW06010
+// MCF-LW06424
+// MCF-LW06420D
+// MCF-LW06010D
+// MCF-LW06424D
+// MCF-LW06KIO
+// MCF-LW12PLG
+// MCF-LW12MET
+// MCF-LW13IO
+// MCF-LW13MIO
+// MCF-LW12TERWP
+// MCF-LW12TERPM
+// MCF-LW12TER
+// MCF-LW12VOC
+// MCF-LW12CO2
+// MCF-LWWS00
+// MCF-LWWS01
+// MCF-LW06DAVK
+// MCF-LW06DAVKP
+
+module Devices.MCF88.MCFLW
 open System
 open System.IO
 open Devices.Payload
-
-
 
 // === Measures
 module Measures =

@@ -1,12 +1,12 @@
-module Test.Devices.MCF88.Comm
+module Test.Devices.MCF88.MCFLW
 
 open System
 open NUnit.Framework
 open FsUnit
 
-open Devices.MCF88.Comm
-open Devices.MCF88.Comm.Measures
-open Devices.MCF88.Comm.Messages
+open Devices.MCF88.MCFLW
+open Devices.MCF88.MCFLW.Measures
+open Devices.MCF88.MCFLW.Messages
 
 [<Test>]
 let TestTemperatureHumidityPressure () =

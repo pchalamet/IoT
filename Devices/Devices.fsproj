@@ -5,9 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Units.fs" />
     <Compile Include="Payload.fs" />
+    <Compile Include="Geosense\VWP3000.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MCF88\Comm.fs" />
+    <Compile Include="MCF88\MCFLW.fs" />
   </ItemGroup>
 </Project>
