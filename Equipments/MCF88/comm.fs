@@ -68,6 +68,7 @@ let private decodeTPRhMeasure (binReader : BinaryReader) =
     let temperature = (binReader.ReadInt16() |> decimal) / 100.0m
     let humidity = (binReader.ReadByte() |> decimal) / 2.0m
     let pressure = (BitConverter.ToInt32(Array.append (binReader.ReadBytes(3)) [| 0uy |], 0) |> decimal) / 100.0m
+
     { TPRhMeasure.Timestamp = time
       TPRhMeasure.Temperature = temperature
       TPRhMeasure.Humidity = humidity
@@ -129,7 +130,6 @@ let private parseAnalogData (binReader : BinaryReader) =
     let measure2 = binReader |> decodeAnalogDataMeasure
     let measure3 = binReader |> decodeAnalogDataMeasure
     let measure4 = binReader |> decodeAnalogDataMeasure
-
     let batteryLevel = if binReader |> isEof then None
                        else binReader.ReadByte() |> decimal |> Some
 
@@ -146,9 +146,9 @@ let private parseTemperaturePressureHumidity (binReader : BinaryReader) =
     let measure1 = binReader |> decodeTPRhMeasure
     let measure2 = binReader |> decodeTPRhMeasure
     let measure3 = binReader |> decodeTPRhMeasure
-
     let batteryLevel = if binReader |> isEof then None
                        else binReader.ReadByte() |> decimal |> Some
+
     { TemperaturePressureHumidity.Measure1 = measure1
       TemperaturePressureHumidity.Measure2 = measure2
       TemperaturePressureHumidity.Measure3 = measure3
@@ -200,7 +200,6 @@ let private toBinaryPayload (payload : string) =
 
 let decodeUplinkMessage (payload : string) =
     let binPayload = payload |> toBinaryPayload
-
     use memStream = new MemoryStream(binPayload)
     use binReader = new BinaryReader(memStream)
 
