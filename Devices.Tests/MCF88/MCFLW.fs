@@ -28,3 +28,9 @@ let TestTemperatureHumidityPressure () =
     let message = DecodeUplinkMessage payload
 
     message |> should equal expected
+
+[<Test>]
+let TestAnalogData() =
+    let payload = "0d01ca284c28ff0fe4070010001064"
+    let message = DecodeUplinkMessage payload
+    printfn "%A" message

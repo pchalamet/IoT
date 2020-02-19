@@ -138,6 +138,7 @@ module Messages =
 
 
     let parseAnalogData (binReader : BinaryReader) =
+        let hwtype = binReader.ReadByte()
         let time = binReader |> Measures.decodeTimestamp
         let measure1 = binReader |> Measures.decodeAnalogDataMeasure
         let measure2 = binReader |> Measures.decodeAnalogDataMeasure
