@@ -31,6 +31,14 @@ let TestTemperatureHumidityPressure () =
 
 [<Test>]
 let TestAnalogData() =
-    let payload = "0d01ca284c28ff0fe4070010001064"
+    let expected = { Timestamp = new DateTime(2020, 2, 19, 17, 44, 20)
+                     Measure1 = MilliAmp4to20 20.0
+                     Measure2 = MilliAmp4to20 4.0429792429792428
+                     Measure3 = NoData
+                     Measure4 = NoData
+                     Battery = Some 93.0 } |> AnalogData 
+
+    let payload = "0d018a8d5328ff0f0b00001000105d"
     let message = DecodeUplinkMessage payload
-    printfn "%A" message
+
+    message |> should equal expected
