@@ -2,7 +2,7 @@
   "profiles": {
     "Decoder": {
       "commandName": "Project",
-      "commandLineArgs": "\"0d01ca284c28ff0fe4070010001064\" \"0d0150684a28001000100010001064\" \"0d012b684a28001000100010001064\" \"0d018a8d5328ff0f0b00001000105d\""
+      "commandLineArgs": "d:\\data\\payloads.txt"
     }
   }
 }
