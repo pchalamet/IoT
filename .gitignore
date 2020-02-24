@@ -1,4 +1,6 @@
-.ionide
-.vs
+.ionide/
+.vs/
+.vscode/
+.idea/
 bin/
 obj/

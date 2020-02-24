@@ -42,3 +42,17 @@ let TestAnalogData() =
     let message = DecodeUplinkMessage payload
 
     message |> should equal expected
+
+[<Test>]
+let TestAnalogDataWithoutBattery() =
+    let expected = { Timestamp = new DateTime(2020, 2, 19, 17, 44, 20)
+                     Measure1 = MilliAmp4to20 20.0
+                     Measure2 = MilliAmp4to20 4.0429792429792428
+                     Measure3 = NoData
+                     Measure4 = NoData
+                     Battery = None } |> AnalogData 
+
+    let payload = "0d018a8d5328ff0f0b0000100010"
+    let message = DecodeUplinkMessage payload
+
+    message |> should equal expected
